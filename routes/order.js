@@ -4,81 +4,50 @@ const Book = require("../models/book");
 const Order = require("../models/order");
 const User = require("../models/user");
 
-//place order
-// router.post("/place-order", authenticateToken, async (req, res) => {
-//   try {
-//     const { id } = req.headers;
-//     const { order } = req.body;
-//     for (const orderData of order) {
-//       const neworder = new Order({ user: id, book: orderData._id });
-//       const orderDataFromDb = await neworder.save();
 
-//       //saving order
-//       await User.findByIdAndUpdate(id, {
-//         $push: { orders: orderDataFromDb._id },
-//       });
-//       await User.findByIdAndUpdate(id, {
-//         $pull: { cart: orderData._id },
-//       });
-//     }
-//     return res.json({
-//       status: "success",
-//       message: "Order placed successfully",
-//     });
-//   } catch (error) { 
-//     console.log(error);
-//     res.status(500).json({ message: "Internal Server Error" });
-//   }
-// });
 const nodemailer = require("nodemailer");
-require("dotenv").config(); // Load environment variables from a .env file
+require("dotenv").config(); 
 
 router.post("/place-order", authenticateToken, async (req, res) => {
   try {
-    const { id } = req.headers; // User ID from headers
-    const { order } = req.body; // Order details from request body
+    const { id } = req.headers; 
+    const { order } = req.body; 
 
-    let orderDetails = []; // To store order details for the email
+    let orderDetails = []; 
 
     for (const orderData of order) {
       // Create a new order
       const neworder = new Order({ user: id, book: orderData._id});
       const orderDataFromDb = await neworder.save();
 
-      // Save the order in the user's orders list
       await User.findByIdAndUpdate(id, {
         $push: { orders: orderDataFromDb._id },
       });
 
-      // Remove the item from the cart
       await User.findByIdAndUpdate(id, {
         $pull: { cart: orderData._id },
       });
 
-      // Add order details to the array for the email
       orderDetails.push(orderDataFromDb);
     }
 
-    // Fetch user details to get their email
     const user = await User.findById(id);
-    // const book = await Book.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Set up Nodemailer transporter
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER, // Email from .env file
-        pass: process.env.EMAIL_PASS, // Password from .env file
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS, 
       },
     });
 
     // Email content
     const mailOptions = {
-      from: process.env.EMAIL_USER, // Sender's email
-      to: user.email, // User's email from the database
+      from: process.env.EMAIL_USER, 
+      to: user.email, 
       subject: "Order Confirmation",
       html: `
         <h1>Order Confirmation</h1>
@@ -96,7 +65,6 @@ router.post("/place-order", authenticateToken, async (req, res) => {
       `,
     };
 
-    // Send the email
     await transporter.sendMail(mailOptions);
     // console.error("Error placing order:", error);
 
